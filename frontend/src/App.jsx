@@ -19,7 +19,9 @@ export default function App() {
         </div>
 
         {/* Right sidebar */}
-        <Sidebar />
+        <div style={{ width: '320px', flexShrink: 0, overflowY: 'auto' }}>
+  <Sidebar />
+</div>
       </div>
 
       {/* Bottom ticker */}

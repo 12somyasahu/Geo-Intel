@@ -1,0 +1,6 @@
+echo "node_modules/" >> .gitignore
+echo ".env" >> .gitignore
+echo "dist/" >> .gitignore
+git add .gitignore
+git commit -m "chore: add gitignore"
+git push

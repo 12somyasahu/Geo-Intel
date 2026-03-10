@@ -65,7 +65,7 @@ export const GTI_COLORS = {
   HIGH:     { fill: '#f4a261', fillOpacity: 0.65, border: '#ffd166' },
   MEDIUM:   { fill: '#457b9d', fillOpacity: 0.55, border: '#74b3ce' },
   LOW:      { fill: '#2d6a4f', fillOpacity: 0.45, border: '#52b788' },
-  UNKNOWN:  { fill: '#1a2d4a', fillOpacity: 0.30, border: '#243b55' },
+  UNKNOWN: { fill: '#1e3a5f', fillOpacity: 0.6, border: '#2d5a8e' },
 }
 
 export const MOCK_SIGNALS = [

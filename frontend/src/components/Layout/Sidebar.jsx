@@ -1,60 +1,56 @@
 import { useStore } from '../../store/useStore'
 import { SignalCard } from '../Signals/SignalCard'
-import { Zap, Globe2, Sliders, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react'
+import { Zap, Globe2, Sliders, AlertTriangle } from 'lucide-react'
 
 const NARRATIVE_DIRECTION_COLORS = {
-  BULLISH_GOLD:      { text: 'text-amber-400', bg: 'bg-amber-900/30 border-amber-800' },
-  BULLISH_USD:       { text: 'text-cyan-400',  bg: 'bg-cyan-900/30 border-cyan-800' },
-  BEARISH_EQUITIES:  { text: 'text-red-400',   bg: 'bg-red-900/30 border-red-800' },
+  BULLISH_GOLD:     'text-amber-400',
+  BULLISH_USD:      'text-cyan-400',
+  BEARISH_EQUITIES: 'text-red-400',
 }
 
 function NarrativesTab() {
   const { narratives, signals } = useStore()
   return (
-    <div className="space-y-3 p-3">
-      <p className="text-[10px] font-mono text-slate-600 uppercase tracking-wider px-1">
+    <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
         Macro Stories — {narratives.length} active clusters
       </p>
       {narratives.map(n => {
         const clusterSignals = signals.filter(s => s.cluster === n.name)
-        const colors = NARRATIVE_DIRECTION_COLORS[n.direction] || { text: 'text-slate-400', bg: 'bg-slate-800 border-slate-700' }
+        const dirColor = NARRATIVE_DIRECTION_COLORS[n.direction] || '#94a3b8'
         return (
-          <div key={n.id} className="rounded-xl border border-slate-800 bg-navy-800 p-4">
-            <div className="flex items-start justify-between mb-2">
+          <div key={n.id} style={{ borderRadius: '12px', border: '1px solid #1e293b', background: '#0f172a', padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <div>
-                <p className="text-sm font-bold text-white">{n.name}</p>
-                <p className="text-[10px] font-mono text-slate-500 mt-0.5">
+                <p style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>{n.name}</p>
+                <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
                   {n.articleCount} articles · {clusterSignals.length} signals
                 </p>
               </div>
-              <span className={`text-[10px] font-mono px-2 py-1 rounded border font-bold ${colors.text} ${colors.bg}`}>
+              <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 8px', borderRadius: '4px', border: '1px solid #1e293b', color: '#00b4d8', fontWeight: 700 }}>
                 {n.direction.replace('_', ' ')}
               </span>
             </div>
-            {/* Strength bar */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] font-mono text-slate-600 w-14">Strength</span>
-              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-indigo-700 to-indigo-400"
-                     style={{ width: `${Math.round(n.strength * 100)}%` }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', width: '56px' }}>Strength</span>
+              <div style={{ flex: 1, height: '6px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.round(n.strength * 100)}%`, background: 'linear-gradient(90deg, #4f46e5, #818cf8)', borderRadius: '3px' }} />
               </div>
-              <span className="text-xs font-mono font-bold text-indigo-400">{Math.round(n.strength * 100)}%</span>
+              <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#818cf8' }}>{Math.round(n.strength * 100)}%</span>
             </div>
-            {/* Country tags */}
-            <div className="flex flex-wrap gap-1">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
               {n.countries.map(c => (
-                <span key={c} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                <span key={c} style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', background: '#1e293b', color: '#64748b', border: '1px solid #334155' }}>
                   {c}
                 </span>
               ))}
             </div>
-            {/* Child signals */}
             {clusterSignals.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-800 space-y-1">
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #1e293b' }}>
                 {clusterSignals.map(s => (
-                  <div key={s.id} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">{s.asset}</span>
-                    <span className={s.direction === 'BUY' ? 'text-green-400 font-mono' : 'text-red-400 font-mono'}>
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                    <span style={{ color: '#94a3b8' }}>{s.asset}</span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: s.direction === 'BUY' ? '#4ade80' : '#f87171' }}>
                       {s.direction} · {Math.round(s.confidence * 100)}%
                     </span>
                   </div>
@@ -70,54 +66,51 @@ function NarrativesTab() {
 
 function WhatIfTab() {
   const { scenario, setScenarioSlider } = useStore()
-
   const sliders = [
-    { key: 'energy_weight',   label: 'Oil Shock',      desc: 'Boosts energy events → WTI, XLE',       color: 'accent-amber-400' },
-    { key: 'conflict_weight', label: 'Escalation',     desc: 'Flight-to-safety → Gold, CHF',           color: 'accent-red-500' },
-    { key: 'trade_weight',    label: 'Supply Chain',   desc: 'Trade/logistics → shipping ETFs',         color: 'accent-blue-400' },
-    { key: 'cyber_weight',    label: 'Cyber Threat',   desc: 'Cyber events → HACK, BUG ETFs',          color: 'accent-purple-400' },
-    { key: 'monetary_weight', label: 'Rate Change',    desc: 'Central bank events → bonds, USD pairs', color: 'accent-cyan-400' },
+    { key: 'energy_weight',   label: 'Oil Shock',    desc: 'Boosts energy events → WTI, XLE' },
+    { key: 'conflict_weight', label: 'Escalation',   desc: 'Flight-to-safety → Gold, CHF' },
+    { key: 'trade_weight',    label: 'Supply Chain', desc: 'Trade/logistics → shipping ETFs' },
+    { key: 'cyber_weight',    label: 'Cyber Threat', desc: 'Cyber events → HACK, BUG ETFs' },
+    { key: 'monetary_weight', label: 'Rate Change',  desc: 'Central bank → bonds, USD pairs' },
   ]
-
   return (
-    <div className="p-4 space-y-5">
-      <div className="flex items-center gap-2 mb-1">
-        <AlertTriangle size={13} className="text-amber-400" />
-        <p className="text-[10px] font-mono text-amber-400 uppercase tracking-wider">Scenario Modifiers — wired to scoring model</p>
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <AlertTriangle size={13} color="#fbbf24" />
+          <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Scenario Modifiers
+          </p>
+        </div>
+        <p style={{ fontSize: '11px', color: '#475569' }}>Sliders inject real weights into the GTI formula.</p>
       </div>
-      <p className="text-xs text-slate-500 -mt-2">
-        These sliders inject real feature weights into the GTI formula. Not cosmetic.
-      </p>
-
       {sliders.map(s => {
         const val = scenario[s.key]
-        const pct = Math.round((val / 2) * 100)
+        const isHigh = val > 1.2
+        const isLow  = val < 0.8
+        const color  = isHigh ? '#fbbf24' : isLow ? '#60a5fa' : '#64748b'
         return (
           <div key={s.key}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-slate-300">{s.label}</span>
-              <span className={`text-xs font-mono font-bold ${val > 1.2 ? 'text-amber-400' : val < 0.8 ? 'text-blue-400' : 'text-slate-400'}`}>
-                {val.toFixed(1)}×
-              </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#e2e8f0' }}>{s.label}</span>
+              <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color }}>{val.toFixed(1)}×</span>
             </div>
             <input
-              type="range" min={0} max={2} step={0.05}
-              value={val}
+              type="range" min={0} max={2} step={0.05} value={val}
               onChange={e => setScenarioSlider(s.key, parseFloat(e.target.value))}
-              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer bg-slate-800"
-              style={{ accentColor: val > 1.2 ? '#f59e0b' : val < 0.8 ? '#60a5fa' : '#64748b' }}
+              style={{ width: '100%', accentColor: color, cursor: 'pointer' }}
             />
-            <p className="text-[10px] text-slate-600 mt-1">{s.desc}</p>
+            <p style={{ fontSize: '10px', color: '#334155', marginTop: '4px' }}>{s.desc}</p>
           </div>
         )
       })}
-
-      <button className="w-full mt-2 py-2 rounded-lg bg-cyan-900/40 border border-cyan-700 text-cyan-300 text-xs font-mono font-semibold hover:bg-cyan-900/70 transition-colors">
+      <button style={{
+        width: '100%', padding: '8px', borderRadius: '8px',
+        background: 'rgba(0,180,216,0.15)', border: '1px solid #0e7490',
+        color: '#67e8f9', fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, cursor: 'pointer'
+      }}>
         Run Simulation →
       </button>
-      <p className="text-[10px] text-slate-600 text-center">
-        Sends POST /api/simulate · backend recomputes GTI + signals
-      </p>
     </div>
   )
 }
@@ -131,27 +124,34 @@ export default function Sidebar() {
     { id: 'whatif',     label: 'What-If',    icon: Sliders, count: null },
   ]
 
-  const REGION_OPTIONS = ['ALL', 'N. AMERICA', 'EUROPE', 'ASIA PAC.', 'MIDDLE EAST', 'L. AMERICA', 'AFRICA']
-  const ASSET_OPTIONS  = ['ALL', 'Equities', 'Bonds', 'Commodities', 'Forex', 'Crypto']
+  const REGIONS = ['ALL', 'N. AMERICA', 'EUROPE', 'ASIA PAC.', 'MIDDLE EAST', 'L. AMERICA', 'AFRICA']
+  const ASSETS  = ['ALL', 'Equities', 'Bonds', 'Commodities', 'Forex', 'Crypto']
 
   return (
-    <div className="w-80 flex-shrink-0 flex flex-col bg-navy-900 border-l border-slate-800 overflow-hidden">
+    <div style={{
+      width: '320px', flexShrink: 0, display: 'flex', flexDirection: 'column',
+      background: '#080f1e', borderLeft: '1px solid #1e293b', overflow: 'hidden'
+    }}>
       {/* Tab bar */}
-      <div className="flex border-b border-slate-800">
+      <div style={{ display: 'flex', borderBottom: '1px solid #1e293b' }}>
         {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-mono font-semibold transition-colors border-b-2 ${
-              activeTab === tab.id
-                ? 'border-cyan-500 text-cyan-400 bg-navy-800'
-                : 'border-transparent text-slate-600 hover:text-slate-400'
-            }`}
-          >
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: '6px', padding: '12px 4px', fontSize: '11px', fontFamily: 'monospace',
+            fontWeight: 600, cursor: 'pointer', border: 'none',
+            borderBottom: activeTab === tab.id ? '2px solid #00b4d8' : '2px solid transparent',
+            color: activeTab === tab.id ? '#00b4d8' : '#475569',
+            background: activeTab === tab.id ? '#0f172a' : 'transparent',
+            transition: 'all 0.15s',
+          }}>
             <tab.icon size={11} />
             {tab.label}
             {tab.count !== null && (
-              <span className={`text-[9px] px-1 rounded ${activeTab === tab.id ? 'bg-cyan-900 text-cyan-400' : 'bg-slate-800 text-slate-600'}`}>
+              <span style={{
+                fontSize: '9px', padding: '1px 5px', borderRadius: '3px',
+                background: activeTab === tab.id ? 'rgba(0,180,216,0.2)' : '#1e293b',
+                color: activeTab === tab.id ? '#00b4d8' : '#475569',
+              }}>
                 {tab.count}
               </span>
             )}
@@ -159,53 +159,43 @@ export default function Sidebar() {
         ))}
       </div>
 
-      {/* Filter bar — only on signals tab */}
+      {/* Filters */}
       {activeTab === 'signals' && (
-        <div className="px-3 py-2 border-b border-slate-800 space-y-2">
-          <div>
-            <p className="text-[9px] font-mono text-slate-700 uppercase mb-1">Region</p>
-            <div className="flex flex-wrap gap-1">
-              {REGION_OPTIONS.map(r => (
-                <button
-                  key={r}
-                  onClick={() => setFilter('region', r)}
-                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
-                    filters.region === r
-                      ? 'bg-cyan-900/50 border-cyan-700 text-cyan-400'
-                      : 'bg-slate-900 border-slate-800 text-slate-600 hover:text-slate-400'
-                  }`}
-                >
-                  {r}
-                </button>
+        <div style={{ padding: '8px 12px', borderBottom: '1px solid #1e293b' }}>
+          <div style={{ marginBottom: '8px' }}>
+            <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>Region</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {REGIONS.map(r => (
+                <button key={r} onClick={() => setFilter('region', r)} style={{
+                  fontSize: '9px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '3px', cursor: 'pointer',
+                  border: '1px solid', borderColor: filters.region === r ? '#0e7490' : '#1e293b',
+                  background: filters.region === r ? 'rgba(0,180,216,0.15)' : 'transparent',
+                  color: filters.region === r ? '#67e8f9' : '#475569',
+                }}>{r}</button>
               ))}
             </div>
           </div>
           <div>
-            <p className="text-[9px] font-mono text-slate-700 uppercase mb-1">Asset Class</p>
-            <div className="flex flex-wrap gap-1">
-              {ASSET_OPTIONS.map(a => (
-                <button
-                  key={a}
-                  onClick={() => setFilter('assetClass', a)}
-                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
-                    filters.assetClass === a
-                      ? 'bg-cyan-900/50 border-cyan-700 text-cyan-400'
-                      : 'bg-slate-900 border-slate-800 text-slate-600 hover:text-slate-400'
-                  }`}
-                >
-                  {a}
-                </button>
+            <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>Asset Class</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {ASSETS.map(a => (
+                <button key={a} onClick={() => setFilter('assetClass', a)} style={{
+                  fontSize: '9px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '3px', cursor: 'pointer',
+                  border: '1px solid', borderColor: filters.assetClass === a ? '#0e7490' : '#1e293b',
+                  background: filters.assetClass === a ? 'rgba(0,180,216,0.15)' : 'transparent',
+                  color: filters.assetClass === a ? '#67e8f9' : '#475569',
+                }}>{a}</button>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'signals' && (
-          <div className="p-3 space-y-3">
-            <p className="text-[10px] font-mono text-slate-600 uppercase tracking-wider px-1">
+          <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Active Signals — {signals.length} total
             </p>
             {signals.map(s => <SignalCard key={s.id} signal={s} />)}
