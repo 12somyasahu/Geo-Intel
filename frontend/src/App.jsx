@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useStore } from './store/useStore'
 import GeoMap from './components/Map/GeoMap'
 import GlobeView from './components/Map/GlobeView'
 import CountryPanel from './components/Map/CountryPanel'
@@ -7,7 +8,12 @@ import Navbar from './components/Layout/Navbar'
 import Ticker from './components/Layout/Ticker'
 
 export default function App() {
+  const bootstrap = useStore(s => s.bootstrap)
   const [globeMode, setGlobeMode] = useState(false)
+
+  useEffect(() => {
+    bootstrap()
+  }, [])
 
   return (
     <div className="flex flex-col h-screen bg-navy-900 overflow-hidden">
