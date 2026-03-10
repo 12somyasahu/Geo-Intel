@@ -3,3 +3,11 @@ frontend/public/world.geojson
 dist/
 .env
 package-lock.json
+backend/venv/
+backend/__pycache__/
+backend/routes/__pycache__/
+backend/services/__pycache__/
+__pycache__/
+*.pyc
+*.pyo
+.env
