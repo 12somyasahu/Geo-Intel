@@ -23,8 +23,8 @@ export default function App() {
       {/* Main content: map + sidebar */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Map area */}
-        <div className="relative flex-1 overflow-hidden">
+        {/* Map area — overflow visible so CountryPanel isn't clipped */}
+        <div className="relative flex-1" style={{ overflow: 'visible' }}>
 
           {/* Globe / Flat toggle button */}
           <button

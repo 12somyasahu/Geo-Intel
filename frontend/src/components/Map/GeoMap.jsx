@@ -146,7 +146,10 @@ function CountryLayer({ geoJson }) {
         e.target.setStyle(getCountryStyle(feature, gtiMap, simulatedGTI))
         e.target.closeTooltip()
       },
-      click() { setSelectedCountry(iso) },
+      click() { 
+  console.log('clicked iso:', iso)
+  setSelectedCountry(iso) 
+},
     })
   }, [gtiMap, simulatedGTI, setSelectedCountry])
 
