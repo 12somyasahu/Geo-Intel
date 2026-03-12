@@ -1,8 +1,66 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
 
+const API = 'http://127.0.0.1:8000/api'
+
+function Sparkline({ data, color }) {
+  if (!data || data.length < 2) return null
+  const w = 80, h = 28
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w
+    const y = h - ((v - min) / range) * h
+    return `${x},${y}`
+  }).join(' ')
+  return (
+    <svg width={w} height={h} style={{ display: 'block' }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" opacity="0.85" />
+    </svg>
+  )
+}
+
+function PriceBadge({ ticker }) {
+  const [data, setData]       = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API}/prices/${ticker}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
+      .catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [ticker])
+
+  if (loading) return (
+    <div style={{ minWidth: '80px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+      <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155' }}>—</span>
+    </div>
+  )
+  if (!data) return null
+
+  const isUp  = data.change_pct >= 0
+  const color = isUp ? '#4ade80' : '#f87171'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+      <Sparkline data={data.sparkline} color={color} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#f1f5f9' }}>
+          {data.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </span>
+        <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color }}>
+          {isUp ? '▲' : '▼'} {Math.abs(data.change_pct)}%
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function SentimentBar({ value }) {
-  const pct = Math.round(Math.abs(value) * 100)
+  const pct   = Math.round(Math.abs(value) * 100)
   const color = value < -0.3 ? '#f87171' : value > 0.3 ? '#4ade80' : '#64748b'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -17,8 +75,7 @@ function SentimentBar({ value }) {
 function ExplainPanel({ signal }) {
   const [openStep, setOpenStep] = useState(null)
 
-  // Handle both mock signals (with cot/sources) and API signals (with summary/reasoning)
-  const hasCot = signal.cot && typeof signal.cot === 'object'
+  const hasCot       = signal.cot && typeof signal.cot === 'object'
   const hasReasoning = signal.reasoning || signal.summary
 
   const steps = hasCot ? [
@@ -27,25 +84,20 @@ function ExplainPanel({ signal }) {
     { key: 'step3', label: '③ Transmission Mechanism', value: signal.cot.step3 },
     { key: 'step7', label: '⑦ Risk Factors',           value: Array.isArray(signal.cot.step7) ? signal.cot.step7.join(' · ') : signal.cot.step7 },
   ] : hasReasoning ? [
-    { key: 'summary',   label: '① Signal Summary',       value: signal.summary },
-    { key: 'reasoning', label: '② Chain of Thought',     value: signal.reasoning },
+    { key: 'summary',   label: '① Signal Summary',   value: signal.summary },
+    { key: 'reasoning', label: '② Chain of Thought', value: signal.reasoning },
   ] : []
 
   return (
     <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      {/* Cluster badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid #3730a3', borderRadius: '8px', marginBottom: '8px' }}>
         <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#818cf8', textTransform: 'uppercase' }}>Narrative Cluster</span>
         <span style={{ fontSize: '11px', fontWeight: 600, color: '#a5b4fc' }}>{signal.cluster}</span>
       </div>
 
-      <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-        LLM Chain-of-Thought
-      </p>
+      <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>LLM Chain-of-Thought</p>
 
-      {steps.length === 0 && (
-        <p style={{ fontSize: '11px', color: '#475569' }}>No reasoning data available.</p>
-      )}
+      {steps.length === 0 && <p style={{ fontSize: '11px', color: '#475569' }}>No reasoning data available.</p>}
 
       {steps.map(step => (
         <div key={step.key} style={{ borderRadius: '8px', border: '1px solid #1e293b', overflow: 'hidden' }}>
@@ -64,12 +116,9 @@ function ExplainPanel({ signal }) {
         </div>
       ))}
 
-      {/* Source articles — only for mock signals with sources */}
-      {signal.sources && signal.sources.length > 0 && (
+      {signal.sources?.length > 0 && (
         <>
-          <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '8px', marginBottom: '4px' }}>
-            Source Articles
-          </p>
+          <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '8px', marginBottom: '4px' }}>Source Articles</p>
           {signal.sources.map(src => (
             <div key={src.id} style={{ padding: '8px 12px', background: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
@@ -92,7 +141,7 @@ function ExplainPanel({ signal }) {
 
 export function SignalCard({ signal }) {
   const [expanded, setExpanded] = useState(false)
-  const isBuy = signal.direction === 'BUY'
+  const isBuy   = signal.direction === 'BUY'
   const confPct = Math.round((signal.confidence ?? 0) * 100)
   const timeAgo = (() => {
     try {
@@ -107,35 +156,35 @@ export function SignalCard({ signal }) {
       background: expanded ? '#0d1626' : '#0a1220', transition: 'all 0.15s'
     }}>
       <div style={{ padding: '12px 16px' }}>
-        {/* Top row */}
+
+        {/* Asset + price row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '8px' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>{signal.asset}</span>
               <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569' }}>{signal.ticker}</span>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                padding: '3px 7px', borderRadius: '6px',
+                background: isBuy ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
+                border: `1px solid ${isBuy ? '#166534' : '#991b1b'}`,
+              }}>
+                {isBuy ? <TrendingUp size={10} color="#4ade80" /> : <TrendingDown size={10} color="#f87171" />}
+                <span style={{ fontSize: '10px', fontFamily: 'monospace', fontWeight: 700, color: isBuy ? '#4ade80' : '#f87171' }}>
+                  {signal.direction}
+                </span>
+              </div>
             </div>
             <p style={{ fontSize: '11px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {signal.trigger || signal.summary || '—'}
             </p>
           </div>
-          {/* Direction badge */}
-          <div style={{
-            flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '6px 10px', borderRadius: '8px',
-            background: isBuy ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
-            border: `1px solid ${isBuy ? '#166534' : '#991b1b'}`,
-          }}>
-            {isBuy
-              ? <TrendingUp size={11} color="#4ade80" />
-              : <TrendingDown size={11} color="#f87171" />
-            }
-            <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: isBuy ? '#4ade80' : '#f87171' }}>
-              {signal.direction}
-            </span>
-          </div>
+
+          {/* Live price + sparkline */}
+          {signal.ticker && <PriceBadge ticker={signal.ticker} />}
         </div>
 
-        {/* Confidence bar */}
+        {/* Confidence */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', width: '72px' }}>Confidence</span>
           <div style={{ flex: 1, height: '4px', background: '#1e293b', borderRadius: '2px', overflow: 'hidden' }}>

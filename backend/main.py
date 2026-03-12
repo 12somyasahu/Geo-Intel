@@ -2,7 +2,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-
+from backend.routes import price         
+ 
 # Force absolute path so uvicorn always finds .env regardless of launch directory
 # Manual env loader — bypasses dotenv encoding issues
 _env_path = r'D:\downloads\Geo-Intel\backend\.env'
@@ -14,7 +15,7 @@ with open(_env_path, 'r', encoding='utf-8-sig') as f:
             os.environ[k.strip()] = v.strip()
 
 from backend.routes import gti, signals, narratives, analyze
-
+ 
 app = FastAPI(
     title="GEO·INTEL API",
     description="Geopolitical Market Intelligence Backend",
@@ -33,6 +34,7 @@ app.include_router(gti.router, prefix="/api")
 app.include_router(signals.router, prefix="/api")
 app.include_router(narratives.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
+app.include_router(price.router, prefix="/api")
 
 @app.get("/")
 def root():

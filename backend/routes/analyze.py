@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from backend.services.gdelt import fetch_country_headlines
+from backend.services.tavily_search import fetch_country_intelligence
 from backend.services.scorer import score_headlines, score_to_level, DEFAULT_SCENARIO
 from backend.services.groq_llm import generate_signal
 
@@ -15,13 +15,11 @@ class ScenarioWeights(BaseModel):
 
 @router.get("/analyze/{iso}")
 async def analyze_country(iso: str):
-    """Standard analysis with default weights."""
     iso = iso.upper()
-    headlines = await fetch_country_headlines(iso)
+    headlines = await fetch_country_intelligence(iso)
     score, breakdown = score_headlines(headlines)
     level = score_to_level(score)
     signal = await generate_signal(headlines, iso, score)
-
     return {
         "iso": iso,
         "gti": {"score": score, "level": level},
@@ -29,28 +27,23 @@ async def analyze_country(iso: str):
         "headlines": headlines,
         "signal": signal,
         "scenario": DEFAULT_SCENARIO,
+        "source": "tavily"
     }
 
 @router.post("/analyze/{iso}/scenario")
 async def analyze_country_scenario(iso: str, weights: ScenarioWeights):
-    """What-If analysis — applies slider weights to scoring formula."""
     iso = iso.upper()
     scenario = weights.model_dump()
-    headlines = await fetch_country_headlines(iso)
+    headlines = await fetch_country_intelligence(iso)
     score, breakdown = score_headlines(headlines, scenario=scenario)
     level = score_to_level(score)
-
-    # Add scenario context to Groq prompt
     active_sliders = [
         k.replace("_weight", "").upper()
         for k, v in scenario.items() if v > 1.2
     ]
     scenario_context = f"[SCENARIO: {', '.join(active_sliders)} amplified]" if active_sliders else ""
     signal = await generate_signal(headlines, f"{iso} {scenario_context}", score)
-
-    # Baseline for delta comparison
     baseline_score, _ = score_headlines(headlines)
-
     return {
         "iso": iso,
         "gti": {"score": score, "level": level},
@@ -60,4 +53,5 @@ async def analyze_country_scenario(iso: str, weights: ScenarioWeights):
         "headlines": headlines,
         "signal": signal,
         "scenario": scenario,
+        "source": "tavily"
     }
