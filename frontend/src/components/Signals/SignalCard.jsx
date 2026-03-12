@@ -16,12 +16,21 @@ function SentimentBar({ value }) {
 
 function ExplainPanel({ signal }) {
   const [openStep, setOpenStep] = useState(null)
-  const steps = [
+
+  // Handle both mock signals (with cot/sources) and API signals (with summary/reasoning)
+  const hasCot = signal.cot && typeof signal.cot === 'object'
+  const hasReasoning = signal.reasoning || signal.summary
+
+  const steps = hasCot ? [
     { key: 'step1', label: '① Event Summary',          value: signal.cot.step1 },
     { key: 'step2', label: '② Historical Precedent',   value: signal.cot.step2 },
     { key: 'step3', label: '③ Transmission Mechanism', value: signal.cot.step3 },
-    { key: 'step7', label: '⑦ Risk Factors',           value: signal.cot.step7.join(' · ') },
-  ]
+    { key: 'step7', label: '⑦ Risk Factors',           value: Array.isArray(signal.cot.step7) ? signal.cot.step7.join(' · ') : signal.cot.step7 },
+  ] : hasReasoning ? [
+    { key: 'summary',   label: '① Signal Summary',       value: signal.summary },
+    { key: 'reasoning', label: '② Chain of Thought',     value: signal.reasoning },
+  ] : []
+
   return (
     <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
       {/* Cluster badge */}
@@ -30,12 +39,20 @@ function ExplainPanel({ signal }) {
         <span style={{ fontSize: '11px', fontWeight: 600, color: '#a5b4fc' }}>{signal.cluster}</span>
       </div>
 
-      <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>LLM Chain-of-Thought</p>
+      <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
+        LLM Chain-of-Thought
+      </p>
+
+      {steps.length === 0 && (
+        <p style={{ fontSize: '11px', color: '#475569' }}>No reasoning data available.</p>
+      )}
 
       {steps.map(step => (
         <div key={step.key} style={{ borderRadius: '8px', border: '1px solid #1e293b', overflow: 'hidden' }}>
-          <button onClick={() => setOpenStep(openStep === step.key ? null : step.key)}
-            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#0f172a', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '11px', fontFamily: 'monospace' }}>
+          <button
+            onClick={() => setOpenStep(openStep === step.key ? null : step.key)}
+            style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#0f172a', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '11px', fontFamily: 'monospace' }}
+          >
             {step.label}
             {openStep === step.key ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
           </button>
@@ -47,21 +64,28 @@ function ExplainPanel({ signal }) {
         </div>
       ))}
 
-      <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '8px', marginBottom: '4px' }}>Source Articles</p>
-      {signal.sources.map(src => (
-        <div key={src.id} style={{ padding: '8px 12px', background: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
-            <p style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.4', flex: 1 }}>{src.title}</p>
-            <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', flexShrink: 0 }}>{src.source}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', background: src.finbert === 'negative' ? 'rgba(239,68,68,0.2)' : 'rgba(74,222,128,0.2)', color: src.finbert === 'negative' ? '#f87171' : '#4ade80' }}>
-              FinBERT: {src.finbert}
-            </span>
-            <div style={{ flex: 1 }}><SentimentBar value={src.sentiment} /></div>
-          </div>
-        </div>
-      ))}
+      {/* Source articles — only for mock signals with sources */}
+      {signal.sources && signal.sources.length > 0 && (
+        <>
+          <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '8px', marginBottom: '4px' }}>
+            Source Articles
+          </p>
+          {signal.sources.map(src => (
+            <div key={src.id} style={{ padding: '8px 12px', background: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+                <p style={{ fontSize: '11px', color: '#94a3b8', lineHeight: '1.4', flex: 1 }}>{src.title}</p>
+                <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', flexShrink: 0 }}>{src.source}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', background: src.finbert === 'negative' ? 'rgba(239,68,68,0.2)' : 'rgba(74,222,128,0.2)', color: src.finbert === 'negative' ? '#f87171' : '#4ade80' }}>
+                  FinBERT: {src.finbert}
+                </span>
+                <div style={{ flex: 1 }}><SentimentBar value={src.sentiment} /></div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   )
 }
@@ -69,10 +93,12 @@ function ExplainPanel({ signal }) {
 export function SignalCard({ signal }) {
   const [expanded, setExpanded] = useState(false)
   const isBuy = signal.direction === 'BUY'
-  const confPct = Math.round(signal.confidence * 100)
+  const confPct = Math.round((signal.confidence ?? 0) * 100)
   const timeAgo = (() => {
-    const m = Math.floor((Date.now() - new Date(signal.timestamp)) / 60000)
-    return m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ago`
+    try {
+      const m = Math.floor((Date.now() - new Date(signal.timestamp)) / 60000)
+      return m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ago`
+    } catch { return 'just now' }
   })()
 
   return (
@@ -88,7 +114,9 @@ export function SignalCard({ signal }) {
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>{signal.asset}</span>
               <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569' }}>{signal.ticker}</span>
             </div>
-            <p style={{ fontSize: '11px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{signal.trigger}</p>
+            <p style={{ fontSize: '11px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {signal.trigger || signal.summary || '—'}
+            </p>
           </div>
           {/* Direction badge */}
           <div style={{
@@ -97,7 +125,10 @@ export function SignalCard({ signal }) {
             background: isBuy ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
             border: `1px solid ${isBuy ? '#166534' : '#991b1b'}`,
           }}>
-            {isBuy ? <TrendingUp size={11} color="#4ade80" /> : <TrendingDown size={11} color="#f87171" />}
+            {isBuy
+              ? <TrendingUp size={11} color="#4ade80" />
+              : <TrendingDown size={11} color="#f87171" />
+            }
             <span style={{ fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: isBuy ? '#4ade80' : '#f87171' }}>
               {signal.direction}
             </span>

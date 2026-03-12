@@ -9,6 +9,25 @@ const DIRECTION_STYLE = {
   NEUTRAL: { color: '#94a3b8', icon: Minus,         bg: 'rgba(148,163,184,0.1)', border: '#334155' },
 }
 
+// Map asset class filter to signal assetClass values
+const ASSET_CLASS_MAP = {
+  'Equities':    ['Equity', 'Equities'],
+  'Bonds':       ['Bond', 'Bonds', 'Fixed Income'],
+  'Commodities': ['Commodity', 'Commodities'],
+  'Forex':       ['Forex', 'FX', 'Currency'],
+  'Crypto':      ['Crypto', 'Cryptocurrency'],
+}
+
+// Map region filter to signal region values
+const REGION_MAP = {
+  'N. AMERICA':  ['N. AMERICA', 'N_AMERICA', 'NORTH AMERICA', 'US', 'CA', 'MX'],
+  'EUROPE':      ['EUROPE', 'EU'],
+  'ASIA PAC.':   ['ASIA PAC', 'ASIA PAC.', 'ASIA_PAC', 'AP'],
+  'MIDDLE EAST': ['MIDDLE EAST', 'MIDDLE_EAST', 'ME'],
+  'L. AMERICA':  ['L. AMERICA', 'L_AMERICA', 'LATAM', 'LATIN AMERICA'],
+  'AFRICA':      ['AFRICA', 'AF'],
+}
+
 function NarrativesTab() {
   const { narratives, signals } = useStore()
   return (
@@ -91,8 +110,6 @@ function WhatIfTab() {
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-      {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
           <AlertTriangle size={13} color="#fbbf24" />
@@ -107,7 +124,6 @@ function WhatIfTab() {
         </p>
       </div>
 
-      {/* Sliders */}
       {sliders.map(s => {
         const val    = scenario[s.key]
         const isHigh = val > 1.2
@@ -129,7 +145,6 @@ function WhatIfTab() {
         )
       })}
 
-      {/* Run button */}
       <button
         onClick={runSimulation}
         disabled={loading || !selectedCountry}
@@ -150,16 +165,10 @@ function WhatIfTab() {
         }
       </button>
 
-      {/* Error */}
-      {error && (
-        <p style={{ fontSize: '11px', color: '#f87171', fontFamily: 'monospace' }}>{error}</p>
-      )}
+      {error && <p style={{ fontSize: '11px', color: '#f87171', fontFamily: 'monospace' }}>{error}</p>}
 
-      {/* Result */}
       {result && sig && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-
-          {/* GTI delta */}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '8px', background: '#0f172a', border: '1px solid #1e293b' }}>
             <div>
               <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase' }}>Scenario GTI</p>
@@ -177,12 +186,7 @@ function WhatIfTab() {
             </div>
           </div>
 
-          {/* Signal badge */}
-          <div style={{
-            padding: '10px 12px', borderRadius: '8px',
-            background: dirStyle.bg, border: `1px solid ${dirStyle.border}`,
-            display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
+          <div style={{ padding: '10px 12px', borderRadius: '8px', background: dirStyle.bg, border: `1px solid ${dirStyle.border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <DirIcon size={14} color={dirStyle.color} />
             <span style={{ fontSize: '13px', fontWeight: 700, color: dirStyle.color }}>{sig.direction}</span>
             <span style={{ fontSize: '12px', color: '#94a3b8' }}>{sig.asset}</span>
@@ -191,16 +195,13 @@ function WhatIfTab() {
             </span>
           </div>
 
-          {/* Summary */}
           <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>{sig.summary}</p>
 
-          {/* CoT */}
           <div style={{ background: '#0f172a', borderRadius: '6px', padding: '8px 10px', border: '1px solid #1e293b' }}>
             <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Chain of Thought</p>
             <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>{sig.reasoning}</p>
           </div>
 
-          {/* Score breakdown */}
           <div style={{ background: '#0f172a', borderRadius: '6px', padding: '8px 10px', border: '1px solid #1e293b' }}>
             <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase', marginBottom: '8px' }}>Score Breakdown</p>
             {Object.entries(result.breakdown || {}).map(([cat, val]) => (
@@ -227,6 +228,21 @@ export default function Sidebar() {
 
   const REGIONS = ['ALL', 'N. AMERICA', 'EUROPE', 'ASIA PAC.', 'MIDDLE EAST', 'L. AMERICA', 'AFRICA']
   const ASSETS  = ['ALL', 'Equities', 'Bonds', 'Commodities', 'Forex', 'Crypto']
+
+  // Filter signals by region and asset class
+  const filteredSignals = signals.filter(s => {
+    const regionMatch = filters.region === 'ALL' ||
+      REGION_MAP[filters.region]?.some(r => s.region?.toUpperCase().includes(r.toUpperCase())) ||
+      s.affectedCountries?.some(c => REGION_MAP[filters.region]?.includes(c))
+
+    const assetMatch = filters.assetClass === 'ALL' ||
+      ASSET_CLASS_MAP[filters.assetClass]?.some(a =>
+        s.assetClass?.toLowerCase().includes(a.toLowerCase()) ||
+        s.asset?.toLowerCase().includes(a.toLowerCase())
+      )
+
+    return regionMatch && assetMatch
+  })
 
   return (
     <div style={{
@@ -297,9 +313,12 @@ export default function Sidebar() {
         {activeTab === 'signals' && (
           <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Active Signals — {signals.length} total
+              Active Signals — {filteredSignals.length} of {signals.length} total
             </p>
-            {signals.map(s => <SignalCard key={s.id} signal={s} />)}
+            {filteredSignals.length === 0
+              ? <p style={{ fontSize: '12px', color: '#475569', fontFamily: 'monospace' }}>No signals match current filters.</p>
+              : filteredSignals.map(s => <SignalCard key={s.id} signal={s} />)
+            }
           </div>
         )}
         {activeTab === 'narratives' && <NarrativesTab />}
