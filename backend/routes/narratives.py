@@ -1,26 +1,25 @@
 from fastapi import APIRouter
-from backend.models import Narrative
+from backend.services.narrative_cache import get_cached_narratives
 
 router = APIRouter()
 
-MOCK_NARRATIVES = [
-    Narrative(
-        id="nar_001", title="Energy Supply Squeeze", strength=0.84,
-        summary="Pipeline disruptions and OPEC+ cuts creating structural supply deficit",
-        regions=["EUROPE", "MIDDLE EAST"], assets=["WTI", "Brent", "Nat Gas"]
-    ),
-    Narrative(
-        id="nar_002", title="Middle East Escalation Arc", strength=0.76,
-        summary="Multi-front conflict expanding risk premium across commodities",
-        regions=["MIDDLE EAST"], assets=["Gold", "Oil", "USD"]
-    ),
-    Narrative(
-        id="nar_003", title="USD Weaponization Wave", strength=0.71,
-        summary="Sanctions + tariff escalation driving dollar dominance narrative",
-        regions=["ASIA PAC", "GLOBAL"], assets=["USD/CNH", "MSCI EM", "BTC"]
-    ),
-]
+_narratives_store: list[dict] = []
 
-@router.get("/narratives", response_model=list[Narrative])
-def get_narratives():
-    return MOCK_NARRATIVES
+async def _ensure_loaded():
+    global _narratives_store
+    if not _narratives_store:
+        _narratives_store = await get_cached_narratives()
+
+@router.get("/narratives")
+async def get_narratives():
+    await _ensure_loaded()
+    return _narratives_store
+
+@router.post("/narratives/refresh")
+async def refresh_narratives():
+    global _narratives_store
+    from backend.services.narrative_cache import CACHE_PATH
+    if CACHE_PATH.exists():
+        CACHE_PATH.unlink()
+    _narratives_store = await get_cached_narratives()
+    return {"status": "refreshed", "count": len(_narratives_store)}

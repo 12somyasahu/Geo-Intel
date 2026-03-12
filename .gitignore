@@ -1,13 +1,49 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
 frontend/node_modules/
-frontend/public/world.geojson
-dist/
-.env
-package-lock.json
 backend/venv/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+frontend/dist/
+build/
+*.egg-info/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.*
+
+# ── Cache files (auto-generated, not for version control) ────────────────────
+backend/*_cache.json
+backend/signals_cache.json
+
+# ── Large static assets ───────────────────────────────────────────────────────
+frontend/public/world.geojson
+
+# ── Python bytecode ───────────────────────────────────────────────────────────
+__pycache__/
 backend/__pycache__/
 backend/routes/__pycache__/
 backend/services/__pycache__/
-__pycache__/
 *.pyc
 *.pyo
-.env
+*.pyd
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Lock files ────────────────────────────────────────────────────────────────
+package-lock.json
+
+# ── OS junk ───────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

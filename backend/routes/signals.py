@@ -1,40 +1,26 @@
 from fastapi import APIRouter
-from backend.models import Signal
-from datetime import datetime
+from backend.services.signal_cache import get_cached_signals
 
 router = APIRouter()
 
-MOCK_SIGNALS = [
-    Signal(
-        id="sig_001", asset="WTI Crude", ticker="WTI",
-        direction="BUY", confidence=0.87,
-        summary="Russia-Ukraine pipeline disruption tightening supply",
-        cluster="Energy Supply Squeeze", region="EUROPE",
-        timestamp=datetime.utcnow().isoformat()
-    ),
-    Signal(
-        id="sig_002", asset="Gold", ticker="XAUUSD",
-        direction="BUY", confidence=0.81,
-        summary="Multi-front escalation driving safe haven demand",
-        cluster="Middle East Escalation Arc", region="MIDDLE EAST",
-        timestamp=datetime.utcnow().isoformat()
-    ),
-    Signal(
-        id="sig_003", asset="USD/CNH", ticker="USDCNH",
-        direction="BUY", confidence=0.74,
-        summary="US-China tariff escalation signals Yuan pressure",
-        cluster="USD Weaponization Wave", region="ASIA PAC",
-        timestamp=datetime.utcnow().isoformat()
-    ),
-    Signal(
-        id="sig_004", asset="MSCI EM", ticker="EEM",
-        direction="SELL", confidence=0.69,
-        summary="Dollar strength + EM capital outflows accelerating",
-        cluster="USD Weaponization Wave", region="GLOBAL",
-        timestamp=datetime.utcnow().isoformat()
-    ),
-]
+_signals_store: list[dict] = []
 
-@router.get("/signals", response_model=list[Signal])
-def get_signals():
-    return MOCK_SIGNALS
+async def _ensure_loaded():
+    global _signals_store
+    if not _signals_store:
+        _signals_store = await get_cached_signals()
+
+@router.get("/signals")
+async def get_signals():
+    await _ensure_loaded()
+    return _signals_store
+
+@router.post("/signals/refresh")
+async def refresh_signals():
+    """Force regenerate — deletes cache and rebuilds via Tavily + Groq."""
+    global _signals_store
+    from backend.services.signal_cache import CACHE_PATH
+    if CACHE_PATH.exists():
+        CACHE_PATH.unlink()
+    _signals_store = await get_cached_signals()
+    return {"status": "refreshed", "count": len(_signals_store)}

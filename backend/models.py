@@ -8,6 +8,7 @@ class Signal(BaseModel):
     direction: str        # BUY | SELL
     confidence: float
     summary: str
+    reasoning: Optional[str] = None
     cluster: str
     region: str
     timestamp: str

@@ -2,7 +2,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from backend.routes import price         
+from backend.routes import price     
+from backend.routes import ticker    
  
 # Force absolute path so uvicorn always finds .env regardless of launch directory
 # Manual env loader — bypasses dotenv encoding issues
@@ -35,6 +36,7 @@ app.include_router(signals.router, prefix="/api")
 app.include_router(narratives.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
 app.include_router(price.router, prefix="/api")
+app.include_router(ticker.router, prefix="/api")
 
 @app.get("/")
 def root():

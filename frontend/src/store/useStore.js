@@ -1,6 +1,5 @@
 import { create } from 'zustand'
-import { MOCK_TICKER } from '../data/mockData'
-import { fetchGTI, fetchSignals, fetchNarratives } from '../services/api'
+import { fetchGTI, fetchSignals, fetchNarratives, fetchTicker } from '../services/api'
 
 export const useStore = create((set, get) => ({
   // Map state
@@ -16,7 +15,7 @@ export const useStore = create((set, get) => ({
   setActiveSignal: (signal) => set({ activeSignal: signal }),
 
   // Ticker
-  tickerEvents: MOCK_TICKER,
+  tickerEvents: [],
 
   // Filters
   filters: { region: 'ALL', assetClass: 'ALL' },
@@ -40,18 +39,18 @@ export const useStore = create((set, get) => ({
   sidebarOpen: true,
   toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
 
-  // Bootstrap — call once on app load
+  // Bootstrap
   bootstrap: async () => {
     try {
-      const [gtiList, signals, narratives] = await Promise.all([
+      const [gtiList, signals, narratives, tickerEvents] = await Promise.all([
         fetchGTI(),
         fetchSignals(),
         fetchNarratives(),
+        fetchTicker(),
       ])
-      // Convert GTI array to map keyed by ISO
       const gtiMap = {}
       gtiList.forEach(g => { gtiMap[g.iso] = g })
-      set({ gtiMap, signals, narratives })
+      set({ gtiMap, signals, narratives, tickerEvents })
     } catch (e) {
       console.warn('API offline, staying on mock data', e)
     }

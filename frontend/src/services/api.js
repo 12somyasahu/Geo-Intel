@@ -19,3 +19,5 @@ export async function fetchCountryGTI(iso) {
   const r = await fetch(`${BASE}/gti/${iso}`);
   return r.json();
 }
+
+export const fetchTicker = () => fetch(`${BASE}/ticker`).then(r => r.json());
