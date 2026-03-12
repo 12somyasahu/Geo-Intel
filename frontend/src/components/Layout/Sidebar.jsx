@@ -1,11 +1,12 @@
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { SignalCard } from '../Signals/SignalCard'
-import { Zap, Globe2, Sliders, AlertTriangle } from 'lucide-react'
+import { Zap, Globe2, Sliders, AlertTriangle, Loader, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
-const NARRATIVE_DIRECTION_COLORS = {
-  BULLISH_GOLD:     'text-amber-400',
-  BULLISH_USD:      'text-cyan-400',
-  BEARISH_EQUITIES: 'text-red-400',
+const DIRECTION_STYLE = {
+  BUY:     { color: '#4ade80', icon: TrendingUp,   bg: 'rgba(74,222,128,0.1)',  border: '#166534' },
+  SELL:    { color: '#f87171', icon: TrendingDown,  bg: 'rgba(248,113,113,0.1)', border: '#991b1b' },
+  NEUTRAL: { color: '#94a3b8', icon: Minus,         bg: 'rgba(148,163,184,0.1)', border: '#334155' },
 }
 
 function NarrativesTab() {
@@ -16,20 +17,14 @@ function NarrativesTab() {
         Macro Stories — {narratives.length} active clusters
       </p>
       {narratives.map(n => {
-        const clusterSignals = signals.filter(s => s.cluster === n.name)
-        const dirColor = NARRATIVE_DIRECTION_COLORS[n.direction] || '#94a3b8'
+        const clusterSignals = signals.filter(s => s.cluster === n.title)
         return (
           <div key={n.id} style={{ borderRadius: '12px', border: '1px solid #1e293b', background: '#0f172a', padding: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <div>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>{n.name}</p>
-                <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
-                  {n.articleCount} articles · {clusterSignals.length} signals
-                </p>
-              </div>
-              <span style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 8px', borderRadius: '4px', border: '1px solid #1e293b', color: '#00b4d8', fontWeight: 700 }}>
-                {n.direction.replace('_', ' ')}
-              </span>
+            <div style={{ marginBottom: '8px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9' }}>{n.title}</p>
+              <p style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', marginTop: '2px' }}>
+                {n.regions?.join(', ')} · {clusterSignals.length} signals
+              </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#475569', width: '56px' }}>Strength</span>
@@ -38,25 +33,14 @@ function NarrativesTab() {
               </div>
               <span style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#818cf8' }}>{Math.round(n.strength * 100)}%</span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-              {n.countries.map(c => (
-                <span key={c} style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', background: '#1e293b', color: '#64748b', border: '1px solid #334155' }}>
-                  {c}
+            <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.5 }}>{n.summary}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+              {n.assets?.map(a => (
+                <span key={a} style={{ fontSize: '10px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', background: '#1e293b', color: '#64748b', border: '1px solid #334155' }}>
+                  {a}
                 </span>
               ))}
             </div>
-            {clusterSignals.length > 0 && (
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #1e293b' }}>
-                {clusterSignals.map(s => (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                    <span style={{ color: '#94a3b8' }}>{s.asset}</span>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: s.direction === 'BUY' ? '#4ade80' : '#f87171' }}>
-                      {s.direction} · {Math.round(s.confidence * 100)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )
       })}
@@ -65,7 +49,11 @@ function NarrativesTab() {
 }
 
 function WhatIfTab() {
-  const { scenario, setScenarioSlider } = useStore()
+  const { scenario, setScenarioSlider, selectedCountry } = useStore()
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState(null)
+  const [error, setError]     = useState(null)
+
   const sliders = [
     { key: 'energy_weight',   label: 'Oil Shock',    desc: 'Boosts energy events → WTI, XLE' },
     { key: 'conflict_weight', label: 'Escalation',   desc: 'Flight-to-safety → Gold, CHF' },
@@ -73,8 +61,38 @@ function WhatIfTab() {
     { key: 'cyber_weight',    label: 'Cyber Threat', desc: 'Cyber events → HACK, BUG ETFs' },
     { key: 'monetary_weight', label: 'Rate Change',  desc: 'Central bank → bonds, USD pairs' },
   ]
+
+  async function runSimulation() {
+    if (!selectedCountry) {
+      setError('Click a country on the map first')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    try {
+      const r = await fetch(`http://127.0.0.1:8000/api/analyze/${selectedCountry}/scenario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scenario),
+      })
+      const d = await r.json()
+      setResult(d)
+    } catch (e) {
+      setError('Backend offline or request failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const sig      = result?.signal
+  const dirStyle = sig ? (DIRECTION_STYLE[sig.direction] ?? DIRECTION_STYLE.NEUTRAL) : null
+  const DirIcon  = dirStyle?.icon ?? Minus
+
   return (
-    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+      {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
           <AlertTriangle size={13} color="#fbbf24" />
@@ -82,10 +100,16 @@ function WhatIfTab() {
             Scenario Modifiers
           </p>
         </div>
-        <p style={{ fontSize: '11px', color: '#475569' }}>Sliders inject real weights into the GTI formula.</p>
+        <p style={{ fontSize: '11px', color: selectedCountry ? '#67e8f9' : '#475569' }}>
+          {selectedCountry
+            ? `Target: ${selectedCountry} — adjust sliders and simulate`
+            : 'Click a country on the map first'}
+        </p>
       </div>
+
+      {/* Sliders */}
       {sliders.map(s => {
-        const val = scenario[s.key]
+        const val    = scenario[s.key]
         const isHigh = val > 1.2
         const isLow  = val < 0.8
         const color  = isHigh ? '#fbbf24' : isLow ? '#60a5fa' : '#64748b'
@@ -104,13 +128,90 @@ function WhatIfTab() {
           </div>
         )
       })}
-      <button style={{
-        width: '100%', padding: '8px', borderRadius: '8px',
-        background: 'rgba(0,180,216,0.15)', border: '1px solid #0e7490',
-        color: '#67e8f9', fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, cursor: 'pointer'
-      }}>
-        Run Simulation →
+
+      {/* Run button */}
+      <button
+        onClick={runSimulation}
+        disabled={loading || !selectedCountry}
+        style={{
+          width: '100%', padding: '8px', borderRadius: '8px',
+          background: loading || !selectedCountry ? 'rgba(0,180,216,0.05)' : 'rgba(0,180,216,0.15)',
+          border: '1px solid #0e7490',
+          color: selectedCountry ? '#67e8f9' : '#334155',
+          fontSize: '12px', fontFamily: 'monospace', fontWeight: 700,
+          cursor: loading || !selectedCountry ? 'not-allowed' : 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+          transition: 'all 0.15s',
+        }}
+      >
+        {loading
+          ? <><Loader size={11} style={{ animation: 'spin 1s linear infinite' }} /> Simulating...</>
+          : 'Run Simulation →'
+        }
       </button>
+
+      {/* Error */}
+      {error && (
+        <p style={{ fontSize: '11px', color: '#f87171', fontFamily: 'monospace' }}>{error}</p>
+      )}
+
+      {/* Result */}
+      {result && sig && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+          {/* GTI delta */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '8px', background: '#0f172a', border: '1px solid #1e293b' }}>
+            <div>
+              <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase' }}>Scenario GTI</p>
+              <p style={{ fontSize: '20px', fontWeight: 700, color: '#f1f5f9', fontFamily: 'monospace' }}>{result.gti?.score}</p>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase' }}>Delta</p>
+              <p style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'monospace', color: result.delta > 0 ? '#f87171' : result.delta < 0 ? '#4ade80' : '#64748b' }}>
+                {result.delta > 0 ? '+' : ''}{result.delta}
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase' }}>Baseline</p>
+              <p style={{ fontSize: '20px', fontWeight: 700, color: '#64748b', fontFamily: 'monospace' }}>{result.baseline_gti?.score}</p>
+            </div>
+          </div>
+
+          {/* Signal badge */}
+          <div style={{
+            padding: '10px 12px', borderRadius: '8px',
+            background: dirStyle.bg, border: `1px solid ${dirStyle.border}`,
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            <DirIcon size={14} color={dirStyle.color} />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: dirStyle.color }}>{sig.direction}</span>
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>{sig.asset}</span>
+            <span style={{ marginLeft: 'auto', fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, color: dirStyle.color }}>
+              {Math.round((sig.confidence ?? 0) * 100)}%
+            </span>
+          </div>
+
+          {/* Summary */}
+          <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>{sig.summary}</p>
+
+          {/* CoT */}
+          <div style={{ background: '#0f172a', borderRadius: '6px', padding: '8px 10px', border: '1px solid #1e293b' }}>
+            <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Chain of Thought</p>
+            <p style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>{sig.reasoning}</p>
+          </div>
+
+          {/* Score breakdown */}
+          <div style={{ background: '#0f172a', borderRadius: '6px', padding: '8px 10px', border: '1px solid #1e293b' }}>
+            <p style={{ fontSize: '9px', fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase', marginBottom: '8px' }}>Score Breakdown</p>
+            {Object.entries(result.breakdown || {}).map(([cat, val]) => (
+              <div key={cat} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
+                <span style={{ color: '#475569', textTransform: 'capitalize', fontFamily: 'monospace' }}>{cat}</span>
+                <span style={{ color: val > 0 ? '#fbbf24' : '#64748b', fontFamily: 'monospace', fontWeight: 700 }}>+{val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
