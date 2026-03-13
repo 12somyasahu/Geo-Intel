@@ -3,6 +3,8 @@ import { X, Zap, Loader, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { GTI_COLORS } from '../../data/mockData'
 
+const BASE = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/api`
+
 const DIRECTION_STYLE = {
   BUY:     { color: '#4ade80', icon: TrendingUp,   bg: 'rgba(74,222,128,0.1)',  border: '#166534' },
   SELL:    { color: '#f87171', icon: TrendingDown,  bg: 'rgba(248,113,113,0.1)', border: '#991b1b' },
@@ -28,7 +30,7 @@ export default function CountryPanel() {
     setError(null)
     setAnalysis(null)
     try {
-      const r = await fetch(`http://127.0.0.1:8000/api/analyze/${selectedCountry}`)
+      const r = await fetch(`${BASE}/analyze/${selectedCountry}`)
       const d = await r.json()
       setAnalysis(d)
     } catch (e) {
@@ -110,7 +112,7 @@ export default function CountryPanel() {
             {sig.summary}
           </p>
 
-          {/* Reasoning */}
+          {/* Reasoning / CoT */}
           <div style={{ background: '#0f172a', borderRadius: 6, padding: '8px 10px', border: '1px solid #1e293b' }}>
             <p style={{ fontSize: 9, fontFamily: 'monospace', color: '#475569', textTransform: 'uppercase', marginBottom: 4 }}>
               Chain of Thought
@@ -118,8 +120,15 @@ export default function CountryPanel() {
             <p style={{ fontSize: 11, color: '#64748b', lineHeight: 1.6 }}>{sig.reasoning}</p>
           </div>
 
-          {/* Headlines count */}
-          <p style={{ fontSize: 10, color: '#334155', fontFamily: 'monospace', marginTop: 8 }}>
+          {/* Transmission channel */}
+          {sig.channel && sig.channel !== 'none' && (
+            <p style={{ fontSize: 10, color: '#0e7490', fontFamily: 'monospace', marginTop: 6, lineHeight: 1.4 }}>
+              ⟶ {sig.channel}
+            </p>
+          )}
+
+          {/* Meta */}
+          <p style={{ fontSize: 10, color: '#334155', fontFamily: 'monospace', marginTop: 6 }}>
             Based on {analysis.headlines?.length ?? 0} live headlines · GTI {analysis.gti?.score} ({analysis.gti?.level})
           </p>
         </div>
@@ -132,7 +141,7 @@ export default function CountryPanel() {
         </div>
       )}
 
-      {/* Existing mock signals */}
+      {/* Cached signals */}
       {countrySignals.length > 0 && (
         <div style={{ padding: '10px 16px', borderBottom: '1px solid #1e293b' }}>
           <p style={{ fontSize: 10, fontFamily: 'monospace', color: '#334155', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -169,7 +178,7 @@ export default function CountryPanel() {
           }
         </button>
         <p style={{ fontSize: 10, color: '#1e293b', textAlign: 'center', marginTop: 4, fontFamily: 'monospace' }}>
-          GNews + Groq Llama 3.3 70B · live data
+          Tavily + Groq Llama 3.3 70B · live data
         </p>
       </div>
     </div>

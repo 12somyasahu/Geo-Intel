@@ -1,13 +1,12 @@
-import os
 import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from backend.services.env_loader import get_tavily_client
 
 CACHE_PATH = Path(__file__).parent.parent / "gti_cache.json"
 CACHE_TTL_HOURS = 6
 
-# Low-change countries — sensible static defaults, not worth burning Tavily quota
 STATIC_GTI = {
     "US": {"score": 25, "level": "LOW",    "label": "United States"},
     "GB": {"score": 18, "level": "LOW",    "label": "United Kingdom"},
@@ -35,28 +34,98 @@ STATIC_GTI = {
     "ZA": {"score": 39, "level": "MEDIUM", "label": "South Africa"},
 }
 
-# Top 20 hotspots — live Tavily scoring
+# Event-focused queries — verbs + weapons + recency
+# Multiple queries per high-priority country for burst detection
 LIVE_COUNTRIES = {
-    "RU": {"label": "Russia",               "query": "Russia Ukraine war military conflict March 2026"},
-    "UA": {"label": "Ukraine",              "query": "Ukraine war frontline offensive defense March 2026"},
-    "IR": {"label": "Iran",                 "query": "Iran US Israel war strikes military March 2026"},
-    "IL": {"label": "Israel",               "query": "Israel war Gaza Lebanon Iran strikes March 2026"},
-    "PS": {"label": "Palestine",            "query": "Gaza Palestine conflict humanitarian crisis March 2026"},
-    "SD": {"label": "Sudan",                "query": "Sudan civil war RSF conflict humanitarian March 2026"},
-    "MM": {"label": "Myanmar",              "query": "Myanmar military junta civil war resistance March 2026"},
-    "YE": {"label": "Yemen",                "query": "Yemen Houthi US strikes Red Sea conflict March 2026"},
-    "SY": {"label": "Syria",                "query": "Syria instability conflict post-Assad March 2026"},
-    "AF": {"label": "Afghanistan",          "query": "Afghanistan Taliban conflict instability March 2026"},
-    "SS": {"label": "South Sudan",          "query": "South Sudan civil conflict violence March 2026"},
-    "CN": {"label": "China",                "query": "China Taiwan military tension trade war March 2026"},
-    "TW": {"label": "Taiwan",               "query": "Taiwan China military strait tension March 2026"},
-    "KP": {"label": "North Korea",          "query": "North Korea missile nuclear test Kim Jong Un March 2026"},
-    "PK": {"label": "Pakistan",             "query": "Pakistan military political instability conflict March 2026"},
-    "SA": {"label": "Saudi Arabia",         "query": "Saudi Arabia Iran war oil security March 2026"},
-    "IQ": {"label": "Iraq",                 "query": "Iraq militia PMF US Iran tension March 2026"},
-    "LB": {"label": "Lebanon",              "query": "Lebanon Hezbollah conflict reconstruction March 2026"},
-    "IN": {"label": "India",                "query": "India border tension China Pakistan conflict March 2026"},
-    "TR": {"label": "Turkey",               "query": "Turkey military conflict Syria Kurdish March 2026"},
+    "IR": {"label": "Iran",         "queries": [
+        "Iran missile strike OR airstrike OR attack today",
+        "Iran Israel war casualties frontline today",
+        "Iran IRGC military strike OR bombed today",
+    ]},
+    "UA": {"label": "Ukraine",      "queries": [
+        "Ukraine missile strike OR shelling OR drone attack today",
+        "Ukraine frontline battle offensive casualties today",
+        "Ukraine Russia war attack killed today",
+    ]},
+    "RU": {"label": "Russia",       "queries": [
+        "Russia Ukraine attack strike offensive today",
+        "Russia military assault frontline killed today",
+        "Russia airstrike drone strike shelling today",
+    ]},
+    "IL": {"label": "Israel",       "queries": [
+        "Israel airstrike OR strike OR attack today",
+        "Israel Gaza Lebanon war casualties today",
+        "Israel Iran military clash killed today",
+    ]},
+    "PS": {"label": "Palestine",    "queries": [
+        "Gaza airstrike bombing casualties killed today",
+        "Palestine conflict attack humanitarian today",
+    ]},
+    "SD": {"label": "Sudan",        "queries": [
+        "Sudan RSF attack killed conflict today",
+        "Sudan civil war casualties shelling today",
+    ]},
+    "MM": {"label": "Myanmar",      "queries": [
+        "Myanmar military attack airstrike killed today",
+        "Myanmar civil war clash resistance today",
+    ]},
+    "YE": {"label": "Yemen",        "queries": [
+        "Yemen Houthi missile strike attack today",
+        "Yemen US airstrike strike killed today",
+    ]},
+    "SY": {"label": "Syria",        "queries": [
+        "Syria attack strike killed conflict today",
+        "Syria military clash insurgent today",
+    ]},
+    "AF": {"label": "Afghanistan",  "queries": [
+        "Afghanistan Taliban attack killed today",
+        "Afghanistan conflict clash explosion today",
+    ]},
+    "SS": {"label": "South Sudan",  "queries": [
+        "South Sudan conflict attack killed today",
+    ]},
+    "CN": {"label": "China",        "queries": [
+        "China Taiwan military strike OR drill OR threat today",
+        "China PLA military escalation today",
+    ]},
+    "TW": {"label": "Taiwan",       "queries": [
+        "Taiwan China military threat strait tension today",
+        "Taiwan PLA drill invasion threat today",
+    ]},
+    "KP": {"label": "North Korea",  "queries": [
+        "North Korea missile launch test fired today",
+        "North Korea nuclear threat Kim Jong Un today",
+    ]},
+    "PK": {"label": "Pakistan",     "queries": [
+        "Pakistan military attack conflict killed today",
+        "Pakistan India border tension clash today",
+    ]},
+    "SA": {"label": "Saudi Arabia", "queries": [
+        "Saudi Arabia Iran attack oil strike today",
+        "Saudi Arabia Houthi missile drone attack today",
+    ]},
+    "IQ": {"label": "Iraq",         "queries": [
+        "Iraq militia attack US forces killed today",
+        "Iraq PMF strike clash explosion today",
+    ]},
+    "LB": {"label": "Lebanon",      "queries": [
+        "Lebanon attack conflict killed today",
+        "Lebanon Israel Hezbollah clash strike today",
+    ]},
+    "IN": {"label": "India",        "queries": [
+        "India Pakistan border clash attack killed today",
+        "India China military tension conflict today",
+    ]},
+    "TR": {"label": "Turkey",       "queries": [
+        "Turkey military strike attack Kurdish Syria today",
+        "Turkey conflict killed clash today",
+    ]},
+}
+
+# Ground truth floor scores — active war zones never score below this
+MINIMUM_SCORES = {
+    "IR": 88, "UA": 88, "RU": 82, "IL": 85, "PS": 88,
+    "SD": 85, "MM": 82, "YE": 78, "SS": 75, "AF": 75, "SY": 72,
 }
 
 def _score_to_level(score: float) -> str:
@@ -71,15 +140,13 @@ def _is_cache_valid() -> bool:
     try:
         with open(CACHE_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
-        age_hours = (time.time() - data.get("cached_at", 0)) / 3600
-        return age_hours < CACHE_TTL_HOURS
+        return (time.time() - data.get("cached_at", 0)) / 3600 < CACHE_TTL_HOURS
     except Exception:
         return False
 
 def _load_cache() -> list[dict]:
     with open(CACHE_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return data["countries"]
+        return json.load(f)["countries"]
 
 def _save_cache(countries: list[dict]):
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
@@ -90,41 +157,51 @@ def _save_cache(countries: list[dict]):
         }, f, indent=2)
     print(f"[gti_cache] Saved {len(countries)} countries")
 
-def _load_env():
-    _env_path = r'D:\downloads\Geo-Intel\backend\.env'
-    with open(_env_path, 'r', encoding='utf-8-sig') as f:
-        for line in f:
-            line = line.strip()
-            if '=' in line and not line.startswith('#'):
-                k, v = line.split('=', 1)
-                os.environ[k.strip()] = v.strip()
+async def _score_country(iso: str, label: str, queries: list[str]) -> dict:
+    from backend.services.scorer import score_headlines, score_to_level
+    all_headlines = []
+    seen_titles = set()
 
-async def _score_country(iso: str, label: str, query: str) -> dict:
-    from backend.services.scorer import score_headlines
     try:
-        _load_env()
-        from tavily import TavilyClient
-        client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-        results = client.search(query=query, search_depth="basic", max_results=6)
-        headlines = []
-        for r in results.get("results", []):
-            headlines.append({
-                "title":   r.get("title", ""),
-                "content": r.get("content", "")[:300],
-                "source":  r.get("url", "").split("/")[2] if r.get("url") else "",
-            })
-        score, _ = score_headlines(headlines)
-        # Clamp so active war zones don't score LOW due to analytical headlines
-        if iso in ["IR", "UA", "RU", "PS", "SD", "YE", "IL"] and score < 60:
-            score = max(score, 60 + (hash(iso) % 20))
+        client = get_tavily_client()
+        for query in queries:
+            results = client.search(
+                query=query,
+                search_depth="advanced",
+                max_results=5,
+                topic="news",
+            )
+            for r in results.get("results", []):
+                url   = r.get("url", "")
+                title = r.get("title", "").strip()
+                if not title or title in seen_titles:
+                    continue
+                if any(b in url for b in ["youtube.com", "facebook.com", "twitter.com", "reddit.com", "wikipedia.org"]):
+                    continue
+                seen_titles.add(title)
+                all_headlines.append({
+                    "title":       title,
+                    "content":     r.get("content", "")[:400],
+                    "source":      url.split("/")[2].replace("www.", "") if url else "",
+                    "publishedAt": r.get("published_date", ""),
+                    "url":         url,
+                })
     except Exception as e:
-        print(f"[gti_cache] Error scoring {iso}: {e}")
-        score = 40.0
+        print(f"[gti_cache] Tavily error for {iso}: {e}")
 
+    score, _ = score_headlines(all_headlines, country_label=label)
+
+    # Apply minimum floor for confirmed active war zones
+    floor = MINIMUM_SCORES.get(iso, 0)
+    if score < floor:
+        score = floor
+        print(f"[gti_cache] {iso} score floored at {floor} (calculated: {score})")
+
+    final_score = round(min(100.0, score), 1)
     return {
         "iso":   iso,
-        "score": round(score, 1),
-        "level": _score_to_level(score),
+        "score": final_score,
+        "level": _score_to_level(final_score),
         "label": label,
     }
 
@@ -133,16 +210,13 @@ async def get_cached_gti() -> list[dict]:
         print("[gti_cache] Serving from cache")
         return _load_cache()
 
-    print("[gti_cache] Regenerating live GTI scores...")
+    print("[gti_cache] Regenerating live GTI scores with advanced scorer...")
     countries = []
 
-    # Live scored countries
     for iso, meta in LIVE_COUNTRIES.items():
-        print(f"[gti_cache] Scoring {iso}...")
-        entry = await _score_country(iso, meta["label"], meta["query"])
-        countries.append(entry)
+        print(f"[gti_cache] Scoring {iso} ({meta['label']})...")
+        countries.append(await _score_country(iso, meta["label"], meta["queries"]))
 
-    # Static defaults
     for iso, meta in STATIC_GTI.items():
         countries.append({"iso": iso, **meta})
 
