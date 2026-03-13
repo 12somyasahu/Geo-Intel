@@ -39,20 +39,33 @@ export const useStore = create((set, get) => ({
   sidebarOpen: true,
   toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
 
-  // Bootstrap
+  // Bootstrap — GTI loads first independently so map always has colors
   bootstrap: async () => {
+    // Step 1: GTI first — map colors depend on this alone
     try {
-      const [gtiList, signals, narratives, tickerEvents] = await Promise.all([
-        fetchGTI(),
-        fetchSignals(),
-        fetchNarratives(),
-        fetchTicker(),
-      ])
+      const gtiList = await fetchGTI()
       const gtiMap = {}
       gtiList.forEach(g => { gtiMap[g.iso] = g })
-      set({ gtiMap, signals, narratives, tickerEvents })
+      set({ gtiMap })
     } catch (e) {
-      console.warn('API offline, staying on mock data', e)
+      console.warn('[bootstrap] GTI fetch failed', e)
+    }
+
+    // Step 2: Everything else — each fails silently, partial data is fine
+    const [signalsResult, narrativesResult, tickerResult] = await Promise.allSettled([
+      fetchSignals(),
+      fetchNarratives(),
+      fetchTicker(),
+    ])
+
+    if (signalsResult.status === 'fulfilled' && Array.isArray(signalsResult.value)) {
+      set({ signals: signalsResult.value })
+    }
+    if (narrativesResult.status === 'fulfilled' && Array.isArray(narrativesResult.value)) {
+      set({ narratives: narrativesResult.value })
+    }
+    if (tickerResult.status === 'fulfilled' && Array.isArray(tickerResult.value)) {
+      set({ tickerEvents: tickerResult.value })
     }
   },
 }))
