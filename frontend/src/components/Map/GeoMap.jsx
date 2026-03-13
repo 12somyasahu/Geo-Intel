@@ -156,7 +156,7 @@ function CountryLayer({ geoJson }) {
   if (!geoJson) return null
   return (
     <GeoJSON
-      key={JSON.stringify(simulatedGTI)}
+      key={`${Object.keys(gtiMap).length}-${JSON.stringify(simulatedGTI)}`}
       data={geoJson}
       style={style}
       onEachFeature={onEachFeature}
