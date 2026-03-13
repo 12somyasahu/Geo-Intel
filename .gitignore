@@ -18,9 +18,6 @@ build/
 backend/*_cache.json
 backend/signals_cache.json
 
-# ── Large static assets ───────────────────────────────────────────────────────
-frontend/public/world.geojson
-
 # ── Python bytecode ───────────────────────────────────────────────────────────
 __pycache__/
 backend/__pycache__/
